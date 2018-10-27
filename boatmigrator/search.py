@@ -3,29 +3,26 @@ from collections import defaultdict
 
 from places import Places
 
-LIMIT = 100
-
 # Search finna.fi for images matching subject
 # triples of (id, year, YSO-place location id)
-def paged_search(subject, places):
+def paged_search(finna, subject, places):
+    LIMIT = 100
+    SUBJECT = subject
+
     finna = FinnaClient()
-    result = finna.search(subject, search_type=FinnaSearchType.Subject,
+    result = finna.search(SUBJECT, search_type=FinnaSearchType.Subject,
                         limit=0, filters=['format:0/Image/', 'online_boolean:1'])
 
     pages = result['resultCount'] // LIMIT
 
     filtered = []
     for page in range(pages):
-        result = finna.search(subject, search_type=FinnaSearchType.Subject,
+        result = finna.search(SUBJECT, search_type=FinnaSearchType.Subject,
             filters=['format:0/Image/', 'online_boolean:1'],
             fields=['id', 'year', 'subjects'],
             sort=FinnaSortMethod.main_date_str_asc,
             limit=LIMIT,
             page=page)
-        
-        if not 'records' in result:
-            print(result)
-            break
 
         for rec in result['records']:
             ident = rec['id']
@@ -59,16 +56,14 @@ def vectorized(search, places, min_count=2):
     for location, years in by_location.items():
         by_canonized_location[places.canonize(location)] += years
 
-    median_years = []
+    data = []
     for location, years in by_canonized_location.items():
-        median = sorted(years)[len(years) // 2]
-        median_years.append((location, median))
-
-    points = []
-    median_years.sort(key=lambda x: x[1])
-    for location, year in median_years:
-        if len(by_location[location]) < min_count:
+        asd = defaultdict(int)
+        for year in years:
+            asd[year] += 1
+        l = places.to_geo(location)
+        if l == None or len(asd) == 0:
             continue
-        points.append(places.to_geo(location))
+        data.append((l, asd))
 
-    return points
+    return data

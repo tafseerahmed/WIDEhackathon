@@ -3,17 +3,25 @@
 import json 
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+from finna_client import FinnaClient
+
 from places import Places
 from search import paged_search, vectorized
 
+finna = FinnaClient()
 places = Places('yso-paikat-skos.rdf')
+cache = {}
 
 class RequestHandler(BaseHTTPRequestHandler): 
     def do_GET(self):
         if 'api' in self.path:
             subject = self.path.strip().split('/')[2]
-            results = paged_search(subject, places)
-            vector = vectorized(results, places)
+            print(subject)
+            if not subject in cache:
+                results = paged_search(finna, subject, places)
+                vector = vectorized(results, places)
+                cache[subject] = vector
+            vector = cache[subject]
 
             #geojson = {"type": "Feature", "geometry": { "type": "Polygon", "coordinates": vector}}
 
